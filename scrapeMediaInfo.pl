@@ -12,7 +12,7 @@ use Time::localtime;
 #
 # Collect MediaInfo output for media files
 #
-# version 0
+# version 0.1
 # Created 2012-09-27
 # Modified 2012-09-27
 #
@@ -53,16 +53,25 @@ use Time::localtime;
 # Default is no test mode
 #
 
+### Possible improvements
+### hook up --output option to output results to a text file
+### add --sidecar option (default true) to output sidecar files for every media file
+### 	if no --output specified and --nosidecar (or if --output STDOUT) output to STDIO
+### add user-definable list of extensions to process???
+### force overwrite of all media files?
+### user-definable output format (--Output=Text vs. --Output=XML)?
+
+# These are useful for temp file naming
 my @MONTHS = qw( 01 02 03 04 05 06 07 08 09 10 11 12 );
 my @DAYS = qw( 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 );
 my @HOURS = qw( 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 );
 my @MINUTES = qw ( 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 );
 my @SECONDS = qw( 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 );
 
+# The following extensions are to be processed - all others will be ignored
 my @EXTS = qw( mov mpg mpeg ts m2t mp4 m4v );
 
 my ( $directory_param, $output_param, $recurse_param, $version_param, $help_param, $debug_param, $test_param );
-my ( $file_buffer, $output_str, $result );
 
 GetOptions(	'directory|d=s'	=> \$directory_param,
 			'output|o=s'	=>	\$output_param,
@@ -75,9 +84,11 @@ GetOptions(	'directory|d=s'	=> \$directory_param,
 # If user asked for help, display help message and exit
 if ( $help_param ) {
 	print "scrapeMediaInfo.pl\n";
-	print "verion 0\n";
+	print "verion 0.1\n";
 	print "\n";
 	print "Collect MediaInfo output for media files\n";
+	print "\n";
+	print "NOTE: MediaInfo CLI must be installed and in path\n";
 	print "\n";
 	print "--directory | -d <directory> - set starting directory\n";
 	print "default is current working directory\n";
@@ -95,7 +106,7 @@ if ( $help_param ) {
 }
 
 if ( $version_param ) {
-	print "scrapeMediaInfo.pl version 0\n";
+	print "scrapeMediaInfo.pl version 0.1\n";
 	exit;
 }
 
@@ -134,18 +145,6 @@ if ( $debug_param ) {
 chdir( $directory_param );	# Change to the target directory
 find( \&doittoit, "." ); 		# Begin file filtering
 
-
-
-
-#####
-exit();
-#####
-
-if ( $debug_param ) { print "DEBUG: creating output file\n"; }
-open( OUTPUT_FILE, ">", $output_param ) or die "Error: could not create file $output_param";
-print( OUTPUT_FILE $output_str );
-close( OUTPUT_FILE );
-
 sub doittoit {
 	# process all files (no directories) in the starting directory
 	# and sub-directories if recursion is on
@@ -159,24 +158,26 @@ sub doittoit {
 		#	Leaf (name of file or directory)
 		my ( $full_path, $parent_dir, $leaf_name, $twig_name, $branch_name, $work_space, $file_size );
 		
-		### add extension?  base name?
+		### add a couple items to this standard list?  extension?  base name?
 		
 		$full_path = $directory_param . "/" . $File::Find::name;	# Create full path
-		$full_path =~ s/\\/\//g;					# Turn around any backwards slashes
-		if ( -d ) { $full_path .= "/"; }				# Add slash to end of the path if it is a directory
-		$full_path =~ s/\/.\//\//;				# Remove extra "/./"
-		$full_path =~ s/\/\//\//g;				# Remove any duplicate slashes
+		$full_path =~ s/\\/\//g;			# Turn around any backwards slashes
+		if ( -d ) { $full_path .= "/"; }	# Add slash to end of the path if it is a directory
+		$full_path =~ s/\/.\//\//;			# Remove extra "/./"
+		$full_path =~ s/\/\//\//g;			# Remove any duplicate slashes
 				
 		$parent_dir = $full_path;
-		$parent_dir =~ s/\/$//g;					# Strip any trailing slash
+		$parent_dir =~ s/\/$//g;			# Strip any trailing slash
 		$parent_dir =~ s/\/([^\/]+)$//;		# Delete and remember anything after after the last non-empty slash
 		$leaf_name = $1;
 		
 		$work_space = $parent_dir;
-		$work_space =~ s/\/([^\/]+)$//g;
+		$work_space =~ s/\/([^\/]+)$//g;	# Strip everything before the last slash (just the file name)
 		$twig_name = $1;
-		$work_space =~ s/\/([^\/]+)$//g;
+		$work_space =~ s/\/([^\/]+)$//g;	# Strip everything before the last slash (just the parent directory)
 		$branch_name = $1;
+		
+		### all of these are being done as s//g, which may not be right - should probably use m// instead
 		
 		my $output_name = $leaf_name . ".mediainfo.xml";
 		if ( ismedia( $leaf_name ) ) {
