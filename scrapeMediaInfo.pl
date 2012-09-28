@@ -193,5 +193,5 @@ sub doittoit {
 sub ismedia($) {
 	my $filename = shift;
 	$filename =~ m/.+\.([^\.]+$)/;
-	foreach ( @EXTS ) { if ( $_ eq $1 ) { return( 1 ); } }
+	foreach ( @EXTS ) { if ( lc( $_ ) eq lc( $1 ) ) { return( 1 ); } }
 }
